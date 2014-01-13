@@ -17,3 +17,45 @@ function oa_workbench_block_info_alter(&$blocks, $theme, $code_blocks) {
   }
 }
 
+/**
+ * Implement hook_default_page_manager_handlers_alter().
+ */
+function oa_workbench_default_page_manager_handlers_alter(&$handlers) {
+  foreach ($handlers as &$handler) {
+    if ($handler->task == 'node_edit') {
+      // Get the pid that is one higher than the highest.
+      $new_pid = 0;
+      foreach (array_keys($handler->conf['display']->content) as $key) {
+        list ($temp, $pid) = explode('-', $key);
+        $pid = (int)$pid;
+        if ($pid > $new_pid) {
+          $new_pid = $pid;
+        }
+      }
+      $new_pid++;
+
+      // Add the workbench block to the top of the sidebar.
+      $pane = new stdClass();
+      $pane->pid = 'new-' . $new_pid;
+      $pane->panel = 'sidebar';
+      $pane->type = 'block';
+      $pane->subtype = 'workbench-block';
+      $pane->shown = TRUE;
+      $pane->access = array();
+      $pane->configuration = array(
+        'override_title' => 0,
+        'override_title_text' => '',
+      );
+      $pane->cache = array();
+      $pane->style = array(
+        'settings' => NULL,
+      );
+      $pane->css = array();
+      $pane->extras = array();
+      $pane->position = 0;
+      $pane->locks = array();
+      $handler->conf['display']->content['new-' . $new_pid] = $pane;
+      array_unshift($handler->conf['display']->panels['sidebar'], 'new-' . $new_pid);
+    }
+  }
+}
