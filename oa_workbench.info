@@ -1,0 +1,9 @@
+name = Open Atrium Workbench
+description = Integrates Workbench with Open Atrium
+package = Open Atrium
+core = 7.x
+
+dependencies[] = oa_core
+dependencies[] = workbench
+dependencies[] = workbench_moderation
+dependencies[] = workbench_moderation_profiles
