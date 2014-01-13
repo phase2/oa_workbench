@@ -6,4 +6,5 @@ core = 7.x
 dependencies[] = oa_core
 dependencies[] = workbench
 dependencies[] = workbench_moderation
-dependencies[] = workbench_moderation_profiles
+dependencies[] = workbench_moderation_profile
+dependencies[] = workbench_moderation_profile_og
