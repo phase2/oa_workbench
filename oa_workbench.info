@@ -4,6 +4,7 @@ package = Open Atrium
 core = 7.x
 
 dependencies[] = oa_core
+dependencies[] = oa_layouts
 dependencies[] = workbench
 dependencies[] = workbench_moderation
 dependencies[] = workbench_moderation_profile
