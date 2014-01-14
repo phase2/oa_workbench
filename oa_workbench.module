@@ -12,8 +12,8 @@ function oa_workbench_block_info_alter(&$blocks, $theme, $code_blocks) {
   if (isset($blocks['workbench']['block'])) {
     // Don't place it in a region by default. Workbench normally wants to place
     // this at the top of the 'content' region.
-    unset($blocks['workbench']['block']['region']);
-    unset($blocks['workbench']['block']['weight']);
+    $blocks['workbench']['block']['region'] = -1;
+    $blocks['workbench']['block']['weight'] = 0;
   }
 }
 
