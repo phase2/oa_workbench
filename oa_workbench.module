@@ -23,6 +23,11 @@ function oa_workbench_block_info_alter(&$blocks, $theme, $code_blocks) {
  * Necessary in order to trigger the workbench_moderation_messages() because
  * workbench_moderation_node_view() only triggers it on $view_mode == 'full'
  * and we need it to trigger on $view_mode == 'page_manager'.
+ *
+ * @todo Remove once the patch from #1462724 is accepted upstream:
+ *       https://drupal.org/node/1462724
+ *
+ * @see workbench_moderation_node_view()
  */
 function oa_workbench_node_view($node, $view_mode = 'full') {
   // Show moderation state messages if we're on a node page.
