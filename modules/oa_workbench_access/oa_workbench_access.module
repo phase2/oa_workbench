@@ -57,7 +57,7 @@ function oa_workbench_access_workbench_moderation_states_next_alter(&$states, $c
  *
  * @param string $from_state
  *   The machine name of the state we want to transition from.
- * @param string $from_state
+ * @param string $to_state
  *   The machine name of the state we want to transition to.
  * @param object|NULL $account
  *   (Optional) A user object representing the user to check. If NULL, it will
