@@ -80,7 +80,28 @@ function oa_workbench_access_workbench_moderation_states_next_alter(&$states, $c
  *   otherwise FALSE.
  */
 function oa_workbench_access($from_state, $to_state, $account = NULL) {
-  // TODO: check the user access in the database.
+  global $user;
+
+  if (is_null($account)) {
+    $account = $user;
+  }
+
+  // TODO: Should we loading everything up and use a static cache like 
+  //       user_access()? Probably won't be called very often. Maybe a static
+  //       cache but with a different strategy?
+  // TODO: This should take Teams into account as well!
+  // TODO: For now, the most simplistic implementation possible...
+  $query = db_select('oa_workbench_access', 'a');
+  $query->innerJoin('og_membership', 'og', 'og.gid = a.nid');
+  $query
+    ->condition('a.type', 'oa_group')
+    ->condition('a.from_name', $from_state)
+    ->condition('a.to_name', $to_state)
+    ->condition('og.group_type', 'node')
+    ->condition('og.entity_type', 'user')
+    ->condition('og.etid', $account->uid);
+
+  return $query->countQuery()->execute()->fetchField() > 0;
 }
 
 /**
