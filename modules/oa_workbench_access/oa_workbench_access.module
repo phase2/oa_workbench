@@ -34,6 +34,18 @@ function oa_workbench_permission() {
 }
 
 /**
+ * Implements hook_theme().
+ */
+function oa_workbench_access_theme() {
+  return array(
+    'oa_workbench_access_permissions_form' => array(
+      'render element' => 'transitions',
+      'file' => 'oa_workbench_access.theme.inc',
+    ),
+  );
+}
+
+/**
  * Implements hook_workbench_moderation_states_next_alter().
  */
 function oa_workbench_access_workbench_moderation_states_next_alter(&$states, $current_state, $context) {
