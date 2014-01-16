@@ -1,0 +1,56 @@
+<?php
+/**
+ * @file
+ * Install hooks for the Open Atrium Workbench Access module.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function oa_workbench_access_schema() {
+  $schema = array();
+  $schema['oa_workbench_access'] = array(
+    'description' => 'Stores the transitions that specific Groups or Teams have permission to perform.',
+    'fields' => array(
+      'nid' => array(
+        'description' => 'The primary identifier for a node.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'type' => array(
+        'description' => 'The {node_type} of this node.',
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'from_name' => array(
+        'description' => 'The starting moderation state.',
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'to_name' => array(
+        'description' => 'The ending moderation state.',
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => TRUE,
+        'default' => '',
+      ),
+    ),
+    'primary key' => array('nid', 'from_name', 'to_name'),
+    'indexes' => array(
+      'nid' => array('nid'),
+    ),
+    'foreign keys' => array(
+      'node' => array(
+        'table' => 'node',
+        'columns' => array('nid' => 'nid'),
+      ),
+    ),
+  );
+  return $schema;
+}

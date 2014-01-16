@@ -1,0 +1,72 @@
+<?php
+/**
+ * @file
+ * Code for the Open Atrium Workbench Access module.
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function oa_workbench_access_menu() {
+  $items = array();
+  $items['admin/openatrium/oa_workbench_access'] = array(
+    'title' => 'Workbench access',
+    'description' => 'Configure which Groups can perform which transitions',
+    'access arguments' => array('administer oa_workbench_access permissions'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('oa_workbench_access_group_permissions_form'),
+    'file' => 'oa_workbench_access.admin.inc',
+    'type' => MENU_NORMAL_ITEM,
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function oa_workbench_permission() {
+  return array(
+    'administer oa_workbench_access permissions' => array(
+      'title' => t('Administer Open Atrium Workbench Access permissions'),
+      'description' => t('Allows users to configure which Groups can perform which transitions.'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_workbench_moderation_states_next_alter().
+ */
+function oa_workbench_access_workbench_moderation_states_next_alter(&$states, $current_state, $context) {
+  $account = $context['account'];
+
+  // Remove states that the user doesn't have permission to transition to.
+  if ($states) {
+    foreach ($states as $machine_name => $label) {
+      if (!oa_workbench_access($current_state, $machine_name, $account)) {
+        unset($states[$machine_name]);
+      }
+    }
+  }
+}
+
+/**
+ * Determines if the user can perform a transition.
+ *
+ * This is based on the user's membership in an Open Atrium Group or Team in
+ * the same way that user_access() is based on a user's membership in a role.
+ *
+ * @param string $from_state
+ *   The machine name of the state we want to transition from.
+ * @param string $from_state
+ *   The machine name of the state we want to transition to.
+ * @param object|NULL $account
+ *   (Optional) A user object representing the user to check. If NULL, it will
+ *   check for the currently logged in user.
+ *
+ * @returns boolean
+ *   TRUE if the user has permission to perform the transition;
+ *   otherwise FALSE.
+ */
+function oa_workbench_access($from_state, $to_state, $account = NULL) {
+  // TODO: check the user access in the database.
+}

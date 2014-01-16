@@ -1,0 +1,6 @@
+name = Open Atrium Workbench Access
+description = Access control for Workbench Moderation transitions based on Open Atrium Groups and Teams.
+package = Open Atrium
+core = 7.x
+
+dependencies[] = oa_workbench
