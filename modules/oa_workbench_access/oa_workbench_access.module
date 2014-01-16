@@ -70,3 +70,20 @@ function oa_workbench_access_workbench_moderation_states_next_alter(&$states, $c
 function oa_workbench_access($from_state, $to_state, $account = NULL) {
   // TODO: check the user access in the database.
 }
+
+/**
+ * Implements hook_node_delete().
+ */
+function oa_workbench_access_node_delete($node) {
+  // TODO: Remove permissions from the database for this node.
+}
+
+/**
+ * Implements hook_workbench_moderation_state_delete().
+ *
+ * @todo: No such hook exists! But there is a todo in workbench_moderation
+ * about it. We'll need to write a patch!
+ */
+function oa_workbench_access_workbench_moderation_state_delete($state) {
+  // TODO: Remove permissions from the database for this state.
+}
