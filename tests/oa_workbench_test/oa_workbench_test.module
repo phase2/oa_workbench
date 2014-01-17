@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the Open Atrium Workbench Access Test feature.
+ */
+
+include_once 'oa_workbench_test.features.inc';
