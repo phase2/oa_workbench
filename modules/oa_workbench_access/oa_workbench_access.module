@@ -147,7 +147,7 @@ function oa_workbench_access_group_permissions($groups) {
   // return it!
   $return = array();
   foreach ($groups as $gid) {
-    $return[$gid] = $cache[$gid];
+    $return[$gid] = isset($cache[$gid]) ? $cache[$gid] : array();
   }
   return $return;
 }
