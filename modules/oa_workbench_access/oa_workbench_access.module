@@ -221,7 +221,9 @@ function oa_workbench_access($from_state, $to_state, $account = NULL) {
  * Implements hook_node_delete().
  */
 function oa_workbench_access_node_delete($node) {
-  // TODO: Remove permissions from the database for this node.
+  db_delete('oa_workbench_access')
+    ->condition('nid', $node->nid)
+    ->execute();
 }
 
 /**
