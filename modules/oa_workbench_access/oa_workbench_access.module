@@ -229,9 +229,26 @@ function oa_workbench_access_node_delete($node) {
 /**
  * Implements hook_workbench_moderation_state_delete().
  *
- * @todo: No such hook exists! But there is a todo in workbench_moderation
- * about it. We'll need to write a patch!
+ * Note: This depends on the patch from issue #2175891:
+ *       https://drupal.org/node/2175891
  */
 function oa_workbench_access_workbench_moderation_state_delete($state) {
-  // TODO: Remove permissions from the database for this state.
+  db_delete('oa_workbench_access')
+    ->condition(db_or()
+      ->condition('from_name', $state->name)
+      ->condition('to_name', $state->name))
+    ->execute();
+}
+
+/**
+ * Implements hook_workbench_moderation_transition_delete().
+ *
+ * Note: This depends on the patch from issue #2175891:
+ *       https://drupal.org/node/2175891
+ */
+function oa_workbench_access_workbench_moderation_transition_delete($transition) {
+  db_delete('oa_workbench_access')
+    ->condition('from_name', $transition->from_name)
+    ->condition('to_name', $transition->to_name)
+    ->execute();
 }
