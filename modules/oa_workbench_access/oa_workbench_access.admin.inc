@@ -15,7 +15,7 @@
  */
 function oa_workbench_access_group_permissions_form($form, &$form_state) {
   $message  = '<p>' . t('Please select which Groups have permission to perform each transition.') . '</p>';
-  $message .= '<p>' . t('<em>Warning: In order to perform a transition, the user must also have a role with the <a href="!url">permission to perform the transation</a>.</em>', array('!url' => url('admin/people/permissions#module-workbench_moderation'))) . '</p>';
+  $message .= '<p>' . t('<em>Warning: In order to perform a transition, the user must also have a role with the <a href="!url">permission to perform the transition</a>.</em>', array('!url' => url('admin/people/permissions#module-workbench_moderation'))) . '</p>';
 
   $form['message'] = array(
     '#markup' => $message
