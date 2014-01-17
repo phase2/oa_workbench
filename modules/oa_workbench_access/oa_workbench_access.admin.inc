@@ -28,6 +28,32 @@ function oa_workbench_access_group_permissions_form($form, &$form_state) {
 }
 
 /**
+ * Form constructor for the Team permissions form.
+ *
+ * Internally it uses _oa_workbench_access_permissions_form() to build the
+ * actual form and handle submit.
+ *
+ * @see _oa_workbench_access_permissions_form()
+ * @see _oa_workbench_access_permissions_form_submit()
+ */
+function oa_workbench_access_team_permissions_form($form, &$form_state, $group_type, $gid) {
+  $message = '<p>' . t('Please select which Teams have permission to perform each transition.') . '</p>';
+  if (user_permission('administer oa_workbench_access permissions')) {
+    $message .= '<p>' . t('You can also <a href="!url">use Groups</a> to control who has permission to perform transitions.', array('!url' => url('admin/openatrium/oa_workbench_access'))) . '</p>';
+  }
+  $message .= '<p>' . t('<em>Warning: In order to perform a transition, the user must also have a <a href="!url">role with permission</a> to perform the transition.</em>', array('!url' => url('admin/people/permissions#module-workbench_moderation'))) . '</p>';
+
+  $form['message'] = array(
+    '#markup' => $message
+  );
+
+  $groups = oa_teams_get_teams_for_space($gid);
+  $transitions = workbench_moderation_transitions();
+
+  return _oa_workbench_access_permissions_form($form, $form_state, 'oa_team', t('Teams'), $groups, $transitions);
+}
+
+/**
  * Internal form constructor for both the Group and Team permissions forms.
  *
  * @param string $node_type
@@ -61,6 +87,11 @@ function _oa_workbench_access_permissions_form($form, &$form_state, $node_type, 
       $values[$perm][$gid] = $gid;
     }
   }
+
+  $form['groups'] = array(
+    '#type' => 'value',
+    '#value' => $groups,
+  );
 
   $form['node_type'] = array(
     '#type' => 'value',
@@ -114,8 +145,17 @@ function _oa_workbench_access_permissions_form($form, &$form_state, $node_type, 
  * @see oa_workbench_access_team_permissions_form()
  */
 function _oa_workbench_access_permissions_form_submit($form, &$form_state) {
-  // Delete all existing permissions.
-  db_delete('oa_workbench_access')->execute();
+  // We can't delete *everything* because we might not be editing everything, ie.
+  // when doing Teams, we're only looking at the teams for a specific Space at any one
+  // time. So, we should actually only delete the data for the $groups originally
+  // passed into _oa_workbench_access_permissions().
+  $gids = array();
+  foreach ($form_state['values']['groups'] as $group) {
+    $gids[] = $group->nid;
+  }
+  db_delete('oa_workbench_access')
+    ->condition('nid', $gids, 'IN')
+    ->execute();
 
   // Then build them back up!
   foreach ($form_state['values']['transitions'] as $name => $transition) {

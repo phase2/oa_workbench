@@ -18,6 +18,18 @@ function oa_workbench_access_menu() {
     'file' => 'oa_workbench_access.admin.inc',
     'type' => MENU_NORMAL_ITEM,
   );
+  if (module_exists('oa_teams')) {
+    $items['group/%/%/admin/oa_workbench_access'] = array(
+      'title' => 'Workbench access',
+      'description' => 'Configure which Teams can perform which transitions',
+      'access callback' => 'og_ui_user_access_group',
+      'access arguments' => array('administer oa_workbench_access permissions', 1, 2),
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('oa_workbench_access_team_permissions_form', 1, 2),
+      'file' => 'oa_workbench_access.admin.inc',
+      'type' => MENU_NORMAL_ITEM,
+    );
+  }
   return $items;
 }
 
@@ -31,6 +43,36 @@ function oa_workbench_permission() {
       'description' => t('Allows users to configure which Groups can perform which transitions.'),
     ),
   );
+}
+
+/**
+ * Implements hook_og_permission().
+ */
+function oa_workbench_og_permission() {
+  return array(
+    'administer oa_workbench_access permissions' => array(
+      'title' => t('Administer Open Atrium Workbench Access permissions'),
+      'description' => t('Allows users to configure which Teams can perform which transitions.'),
+      'default role' => array(OG_ADMINISTRATOR_ROLE),
+    ),
+  );
+}
+
+/**
+ * Implements hook_og_ui_get_group_admin().
+ */
+function oa_workbench_og_ui_get_group_admin($group_type, $gid) {
+  $items = array();
+
+  if (module_exists('oa_teams') && og_user_access($group_type, $gid, 'administer oa_workbench_access permissions')) {
+    $items['oa_workbench_access'] = array(
+      'title' => t('Workbench access'),
+      'description' => t('Configure which Teams can perform which transitions'),
+      'href' => 'admin/oa_workbench_access',
+    );
+  }
+
+  return $items;
 }
 
 /**
@@ -50,11 +92,12 @@ function oa_workbench_access_theme() {
  */
 function oa_workbench_access_workbench_moderation_states_next_alter(&$states, $current_state, $context) {
   $account = $context['account'];
+  $node = $context['node'];
 
   // Remove states that the user doesn't have permission to transition to.
-  if ($states) {
+  if ($states && !empty($node->nid)) {
     foreach ($states as $machine_name => $label) {
-      if (!oa_workbench_access($current_state, $machine_name, $account)) {
+      if (!oa_workbench_access($node, $current_state, $machine_name, $account)) {
         unset($states[$machine_name]);
       }
     }
@@ -63,10 +106,13 @@ function oa_workbench_access_workbench_moderation_states_next_alter(&$states, $c
 
 /**
  * Get a list of this user's Groups and Teams.
- *
+ * 
  * @param object|NULL $user 
  *   (Optional) The user to get groups for. If NULL, it will find groups for
  *   the currently logged in user.
+ * @param integer $space_nid 
+ *   (Optional) The nid of a Space. If given, this will filter the Teams to
+ *   include only those that belong to the given Space.
  *
  * @return array
  *   An associative array keyed by group nid containing associative arrays with
@@ -74,7 +120,7 @@ function oa_workbench_access_workbench_moderation_states_next_alter(&$states, $c
  *   - nid: The group nid.
  *   - type: The node type (ex: oa_group, oa_team).
  */
-function oa_workbench_access_user_groups($account = NULL) {
+function oa_workbench_access_user_groups($account = NULL, $space_nid = 0) {
   global $user;
 
   if (is_null($account)) {
@@ -84,6 +130,9 @@ function oa_workbench_access_user_groups($account = NULL) {
   $groups = array();
 
   // First, get all the users oa_groups.
+  // TODO: Since we could call oa_workbench_access_user_groups() twice with
+  // different $space_nid's per requests, we could probably gain by having a
+  // static cache for oa_group memberships.
   $query = db_select('og_membership', 'og');
   $query->innerJoin('node', 'n', 'og.gid = n.nid');
   $query
@@ -100,7 +149,25 @@ function oa_workbench_access_user_groups($account = NULL) {
     );
   }
 
-  // TODO: Next, get all the users oa_teams.
+  if (module_exists('oa_teams')) {
+    $valid_teams = $space_nid ? oa_teams_get_teams_for_space($space_nid) : NULL;
+
+    // Then, we get all the user's oa_teams, optionally filtering by valid
+    // teams for this particular Space.
+    $query = db_select('field_data_' . OA_TEAM_USERS_FIELD, 'f')
+      ->fields('f', array('entity_id'))
+      ->condition('entity_type', 'node')
+      ->condition('deleted', 0)
+      ->condition(OA_TEAM_USERS_FIELD . '_target_id', $account->uid);
+    foreach ($query->execute() as $row) {
+      if (is_null($valid_teams) || isset($valid_teams[$row->entity_id])) {
+        $groups[$row->entity_id] = array(
+          'nid' => $row->entity_id,
+          'type' => 'oa_team',
+        );
+      }
+    }
+  }
 
   return $groups;
 }
@@ -184,6 +251,8 @@ function oa_workbench_access_group_combined_permissions($groups) {
  * This is based on the user's membership in an Open Atrium Group or Team in
  * the same way that user_access() is based on a user's membership in a role.
  *
+ * @param object $node
+ *   The node that we want to perform the transition on.
  * @param string $from_state
  *   The machine name of the state we want to transition from.
  * @param string $to_state
@@ -196,7 +265,7 @@ function oa_workbench_access_group_combined_permissions($groups) {
  *   TRUE if the user has permission to perform the transition;
  *   otherwise FALSE.
  */
-function oa_workbench_access($from_state, $to_state, $account = NULL) {
+function oa_workbench_access($node, $from_state, $to_state, $account = NULL) {
   global $user;
 
   if (is_null($account)) {
@@ -206,15 +275,31 @@ function oa_workbench_access($from_state, $to_state, $account = NULL) {
   // This function is most commonly called with the same $from_state and
   // $account but different $to_state's. So the layout of the static cache
   // is optimized for that case.
+  //
+  // Also, when Teams come into play, access is dependent on Space which the
+  // node belongs to. This is because permission gained by membership in a Team
+  // on Space A shouldn't give you that permission when editting content in
+  // Space B.
+  //
+  // So, the cache looks like this:
+  //
+  //   $cache[$space_nid][$account->uid][$from_state . '-' . $to_state] = TRUE;
+  //
+  // However, if oa_teams is disabled, we'll use a constant for $space_nid to
+  // group everything togather for a modest performance boost.
+  //
   $cache =& drupal_static(__FUNCTION__, array());
 
-  if (!isset($cache[$account->uid])) {
-    $groups = array_keys(oa_workbench_access_user_groups($account));
-    $perms = oa_workbench_access_group_combined_permissions($groups);
-    $cache[$account->uid] = $perms;
+  $space_nid = !module_exists('oa_teams') ? 0 :
+    oa_core_get_group_from_node($node->nid);
+
+  if (!isset($cache[$space_nid][$account->uid])) {
+    $groups = oa_workbench_access_user_groups($account, $space_nid);
+    $perms = oa_workbench_access_group_combined_permissions(array_keys($groups));
+    $cache[$space_nid][$account->uid] = $perms;
   }
 
-  return isset($cache[$account->uid][$from_state . '-' . $to_state]);
+  return isset($cache[$space_nid][$account->uid][$from_state . '-' . $to_state]);
 }
 
 /**

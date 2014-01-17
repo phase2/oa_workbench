@@ -4,3 +4,4 @@ package = Open Atrium
 core = 7.x
 
 dependencies[] = oa_workbench
+dependencies[] = og_ui
