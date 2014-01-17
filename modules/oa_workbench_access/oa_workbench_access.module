@@ -62,6 +62,100 @@ function oa_workbench_access_workbench_moderation_states_next_alter(&$states, $c
 }
 
 /**
+ * Get a list of this user's Groups and Teams.
+ *
+ * @param object|NULL $user 
+ *   (Optional) The user to get groups for. If NULL, it will find groups for
+ *   the currently logged in user.
+ *
+ * @return array
+ *   An associative array keyed by group nid containing associative arrays with
+ *   the following keys:
+ *   - nid: The group nid.
+ *   - type: The node type (ex: oa_group, oa_team).
+ */
+function oa_workbench_access_user_groups($account = NULL) {
+  global $user;
+
+  if (is_null($account)) {
+    $account = $user;
+  }
+
+  $groups = array();
+
+  // First, get all the users oa_groups.
+  $query = db_select('og_membership', 'og');
+  $query->innerJoin('node', 'n', 'og.gid = n.nid');
+  $query
+    ->fields('n', array('nid', 'type'))
+    ->condition('og.group_type', 'node')
+    ->condition('og.entity_type', 'user')
+    ->condition('og.state', OG_STATE_ACTIVE)
+    ->condition('n.type', 'oa_group')
+    ->condition('og.etid', $account->uid);
+  foreach ($query->execute() as $row) {
+    $groups[$row->nid] = array(
+      'nid'  => $row->nid,
+      'type' => $row->type,
+    );
+  }
+
+  // TODO: Next, get all the users oa_teams.
+
+  return $groups;
+}
+
+/**
+ * Gets all the transitions that a list of groups can perform.
+ *
+ * The permissions of all the groups are combined, such that if any group in
+ * the list has permission to perform a transition, it will be returned.
+ *
+ * @param array $groups
+ *   An array of nids of Groups or Teams.
+ * 
+ * @return array
+ *   An associative array with from states as keys and another associative
+ *   array with to states as keys and TRUE as the value. For example:
+ *   @code
+ *   array('from_state' => array('to_state' => TRUE))
+ *   @endcode
+ *   Which signifies that the combined permissions of the given groups can
+ *   perform the transition from 'from_state' to 'to_state'.
+ */
+function oa_workbench_access_group_permissions($groups) {
+  $cache =& drupal_static(__FUNCTION__, array());
+
+  // First, go through the static cache and any groups we don't have data
+  // for to the $missing array.
+  $missing = array();
+  foreach ($groups as $gid) {
+    if (!isset($cache[$gid])) {
+      $missing[] = $gid;
+    }
+  }
+
+  // Next, query any of the missing groups from the database and add them to
+  // the static cache.
+  if (!empty($missing)) {
+    $query = db_select('oa_workbench_access', 'a')
+      ->fields('a', array('nid', 'from_name', 'to_name'))
+      ->condition('a.nid', $missing, 'IN');
+    foreach ($query->execute() as $row) {
+      $cache[$row->nid][$row->from_name][$row->to_name] = TRUE;
+    }
+  }
+
+  // Finally, add all the necessary permissions from the static cache and
+  // return it!
+  $return = array();
+  foreach ($groups as $gid) {
+    $return = array_replace_recursive($return, $cache[$gid]);
+  }
+  return $return;
+}
+
+/**
  * Determines if the user can perform a transition.
  *
  * This is based on the user's membership in an Open Atrium Group or Team in
@@ -86,22 +180,17 @@ function oa_workbench_access($from_state, $to_state, $account = NULL) {
     $account = $user;
   }
 
-  // TODO: Should we loading everything up and use a static cache like 
-  //       user_access()? Probably won't be called very often. Maybe a static
-  //       cache but with a different strategy?
-  // TODO: This should take Teams into account as well!
-  // TODO: For now, the most simplistic implementation possible...
-  $query = db_select('oa_workbench_access', 'a');
-  $query->innerJoin('og_membership', 'og', 'og.gid = a.nid');
-  $query
-    ->condition('a.type', 'oa_group')
-    ->condition('a.from_name', $from_state)
-    ->condition('a.to_name', $to_state)
-    ->condition('og.group_type', 'node')
-    ->condition('og.entity_type', 'user')
-    ->condition('og.etid', $account->uid);
+  // This function is most commonly called with the same $from_state and
+  // $account but different $to_state's. So the layout of the static cache
+  // is optimized for that case.
+  $cache =& drupal_static(__FUNCTION__, array());
 
-  return $query->countQuery()->execute()->fetchField() > 0;
+  if (!isset($cache[$account->uid])) {
+    $groups = array_keys(oa_workbench_access_user_groups($account));
+    $cache[$account->uid] = oa_workbench_access_group_permissions($groups);
+  }
+
+  return isset($cache[$account->uid][$from_state][$to_state]);
 }
 
 /**
