@@ -108,20 +108,17 @@ function oa_workbench_access_user_groups($account = NULL) {
 /**
  * Gets all the transitions that a list of groups can perform.
  *
- * The permissions of all the groups are combined, such that if any group in
- * the list has permission to perform a transition, it will be returned.
- *
  * @param array $groups
  *   An array of nids of Groups or Teams.
  * 
  * @return array
- *   An associative array with from states as keys and another associative
- *   array with to states as keys and TRUE as the value. For example:
+ *   An associative array keyed by group nid containing associative arrays
+ *   keyed by the transition name with a value of TRUE. For example:
  *   @code
- *   array('from_state' => array('to_state' => TRUE))
+ *   array('27' => array('from_state-to_state' => TRUE))
  *   @endcode
- *   Which signifies that the combined permissions of the given groups can
- *   perform the transition from 'from_state' to 'to_state'.
+ *   Which signifies that the group with nid 27 can perform the transition from
+ *   'from_state' to 'to_state'.
  */
 function oa_workbench_access_group_permissions($groups) {
   $cache =& drupal_static(__FUNCTION__, array());
@@ -142,7 +139,7 @@ function oa_workbench_access_group_permissions($groups) {
       ->fields('a', array('nid', 'from_name', 'to_name'))
       ->condition('a.nid', $missing, 'IN');
     foreach ($query->execute() as $row) {
-      $cache[$row->nid][$row->from_name][$row->to_name] = TRUE;
+      $cache[$row->nid][$row->from_name . '-' . $row->to_name] = TRUE;
     }
   }
 
@@ -150,7 +147,33 @@ function oa_workbench_access_group_permissions($groups) {
   // return it!
   $return = array();
   foreach ($groups as $gid) {
-    $return = array_replace_recursive($return, $cache[$gid]);
+    $return[$gid] = $cache[$gid];
+  }
+  return $return;
+}
+
+/**
+ * Gets all the transitions that a list of groups can perform.
+ *
+ * The permissions of all the groups are combined, such that if any group in
+ * the list has permission to perform a transition, it will be returned.
+ *
+ * @param array $groups
+ *   An array of nids of Groups or Teams.
+ * 
+ * @return array
+ *   An associative array keyed by the transition name with a value of TRUE.
+ *   For example:
+ *   @code
+ *   array('from_state-to_state' => TRUE)
+ *   @endcode
+ *   Which signifies that the combined permissions of the given groups can
+ *   perform the transition from 'from_state' to 'to_state'.
+ */
+function oa_workbench_access_group_combined_permissions($groups) {
+  $return = array();
+  foreach (oa_workbench_access_group_permissions($groups) as $gid => $perms) {
+    $return = array_merge($return, $perms);
   }
   return $return;
 }
@@ -187,10 +210,11 @@ function oa_workbench_access($from_state, $to_state, $account = NULL) {
 
   if (!isset($cache[$account->uid])) {
     $groups = array_keys(oa_workbench_access_user_groups($account));
-    $cache[$account->uid] = oa_workbench_access_group_permissions($groups);
+    $perms = oa_workbench_access_group_combined_permissions($groups);
+    $cache[$account->uid] = $perms;
   }
 
-  return isset($cache[$account->uid][$from_state][$to_state]);
+  return isset($cache[$account->uid][$from_state . '-' . $to_state]);
 }
 
 /**

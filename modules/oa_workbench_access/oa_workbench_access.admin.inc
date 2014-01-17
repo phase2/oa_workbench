@@ -47,27 +47,25 @@ function oa_workbench_access_group_permissions_form($form, &$form_state) {
  * @ingroup forms
  */
 function _oa_workbench_access_permissions_form($form, &$form_state, $node_type, $group_label, $groups, $transitions) {
-  // Load the current values from the database.
-  $result = db_select('oa_workbench_access', 'a')
-    ->fields('a', array('nid', 'from_name', 'to_name'))
-    ->condition('type', $node_type, '=')
-    ->execute();
+  $group_options = array();
+  foreach ($groups as $group) {
+    $group_options[$group->nid] = $group->title;
+  }
+
+  // Load the current values from the database and put into the format needed
+  // by #default_value for a multiple select.
   $values = array();
-  foreach ($result as $value) {
-    $name = $value->from_name . '-' . $value->to_name;
-    // The form needed by #default_value for a multiple select.
-    $values[$name][$value->nid] = $value->nid;
+  $group_permissions = oa_workbench_access_group_permissions(array_keys($group_options));
+  foreach ($group_permissions as $gid => $perms) {
+    foreach (array_keys($perms) as $perm) {
+      $values[$perm][$gid] = $gid;
+    }
   }
 
   $form['node_type'] = array(
     '#type' => 'value',
     '#value' => $node_type,
   );
-
-  $group_options = array();
-  foreach ($groups as $group) {
-    $group_options[$group->nid] = $group->title;
-  }
 
   // Put each of the transitions on the form with a list of Groups that can
   // do them. This will be themed into a table.
