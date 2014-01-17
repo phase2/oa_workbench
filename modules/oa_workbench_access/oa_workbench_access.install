@@ -44,8 +44,6 @@ function oa_workbench_access_schema() {
     'primary key' => array('nid', 'from_name', 'to_name'),
     'indexes' => array(
       'nid' => array('nid'),
-      // Necessary for loading all current values on admin pages.
-      'type' => array('type'),
       // Both of these are necessary for deleting permissions when states
       // are deleted.
       'from_name' => array('from_name'),
