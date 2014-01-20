@@ -37,6 +37,20 @@ function oa_workbench_node_view($node, $view_mode = 'full') {
 }
 
 /**
+ * Implements hook_strongarm_alter().
+ */
+function oa_workbench_strongarm_alter(&$items) {
+  if (isset($items['contextual_tabs_extract'])) {
+    $items['contextual_tabs_extract']->value .= "\n" . implode("\n", array(
+      "View published",
+      "View draft",
+      "New draft,icon-pencil",
+      "Edit draft,icon-pencil",
+    ));
+  }
+}
+
+/**
  * Loops through a Panels display and gets a new pid.
  *
  * @param object $display
