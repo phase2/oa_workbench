@@ -1,0 +1,456 @@
+<?php
+/**
+ * @file
+ * Functional tests for the Open Atrium Workbench Access module.
+ */
+
+/**
+ * Functional tests for the Open Atrium Workbench Access module.
+ *
+ * Replace DrupalWebTestCase with SimpleTestCloneTestCase to dramatically
+ * improve the test run time for the tests. Unfortunately, this won't work on
+ * Drupal.org and requires installing from the Open Atrium 2.0 profile AND
+ * installing the simpletest_clone module.
+ */
+class OpenAtriumWorkbenchAccess extends DrupalWebTestCase {
+//class OpenAtriumWorkbenchAccess extends SimpleTestCloneTestCase {
+  public static function getInfo() {
+    return array(
+      'name' => 'Open Atrium Workbench Access',
+      'description' => 'Test that Open Atrium Workbench Access is correctly controlling access.',
+      'group' => 'Open Atrium Workbench Access',
+    );
+  }
+
+  public function setUp() {
+    parent::setUp(array(
+      'oa_sections',
+      'oa_teams',
+      'oa_workbench_test',
+      'oa_workbench_access',
+    ));
+
+    // Since we're not enabling oa_home, we need to make sure the front page
+    // exists, or $this->drupalLogin() will fail from the 404.
+    variable_set('site_frontpage', 'user');
+
+    // When setting 'og_group_ref' on oa_workbench_test_content, we get:
+    //   "EntityMetadataWrapperException: Unknown data property og_group_ref__og_membership
+    // These next two lines fix that.
+    features_revert(array('oa_workbench_test' => array('field_instance')));
+    entity_info_cache_clear();
+
+    // Get og_roles for oa_space and map from name to rid.
+    $og_roles = array();
+    foreach (og_roles('node', 'oa_space') as $rid => $role_name) {
+      $og_roles[$role_name] = $rid;
+    }
+
+    // Setup some default OG permissions.
+    og_role_grant_permissions($og_roles[OG_ADMINISTRATOR_ROLE], array(
+      'create oa_section content',
+      'create oa_team content',
+      'set group workbench moderation profile',
+      'administer oa_workbench_access permissions',
+    ));
+    og_role_grant_permissions($og_roles[OG_AUTHENTICATED_ROLE], array(
+      'create oa_workbench_test_content content',
+      'update own oa_workbench_test_content content',
+      'update any oa_workbench_test_content content',
+    ));
+
+    // Setup some default permissions we give to all the users we create.
+    $this->default_permissions = array(
+      'view moderation messages',
+      'view moderation history',
+      // The global Drupal permissions are necessary too - oa_workbench_access
+      // won't give you permission *beyond* what you already have.
+      'moderate content from draft to needs_review',
+      'moderate content from needs_review to draft',
+      'moderate content from needs_review to published',
+    );
+  
+    // Create an admin user to set everything up.
+    $this->admin_user = $this->drupalCreateUser(array_merge($this->default_permissions, array(
+      'create oa_space content',
+      'administer oa_workbench_access permissions',
+    )));
+    $this->drupalLogin($this->admin_user);
+
+    // Here is the main Space that we'll use for testing.
+    $this->space1 = $this->oaCreateNode(array(
+      'title' => 'Space A',
+      'type' => 'oa_space',
+      'uid' => $this->admin_user->uid,
+    ));
+
+    // We set the profile to 'Default' (created automatically by
+    // workbench_moderation_profile during install) to avoid a whole bunch of
+    // PHP notices when it isn't set.
+    $this->oaWorkbenchModerationProfile($this->space1, 'Default');
+
+    // We'll create a Section which allows us to create create
+    // oa_workbench_test_content nodes.
+    $this->section1 = $this->oaCreateNode(array(
+      'title' => 'Test section',
+      'type' => 'oa_section',
+      'uid' => $this->admin_user->uid,
+    ), $this->space1);
+
+    // This is the node we will be transitioning in our tests.
+    $this->node = $this->oaCreateNode(array(
+      'title' => 'Test content',
+      'type' => 'oa_workbench_test_content',
+      'uid' => $this->admin_user->uid,
+    ), $this->space1, $this->section1);
+  }
+
+  /**
+   * Creates a node with an optional Space or Section.
+   *
+   * Replaces $this->drupalCreateNode() inside this test class.
+   *
+   * @param array $info
+   *   An associative array with information about the node which will
+   *   eventually get passed to node_save().
+   * @param object $space
+   *   (Optional) A Drupal node object representing the Space this node should
+   *   be created in.
+   * @param object $section
+   *   (Optional) A Drupal node object representing the Section this node
+   *   should be created in.
+   *
+   * @return object
+   *   The Drupal node object that was created.
+   *
+   * @see DrupalWebTestCase::drupalCreateNode()
+   */
+  protected function oaCreateNode($info, $space = NULL, $section = NULL) {
+    if ($space) {
+      $info['og_group_ref'][LANGUAGE_NONE][0]['target_id'] = $space->nid;
+    }
+    if ($section) {
+      $info['oa_section_ref'][LANGUAGE_NONE][0]['target_id'] = $section->nid;
+    }
+    return $this->drupalCreateNode($info);
+  }
+
+  /**
+   * Create a user with an optional Space.
+   *
+   * Replaces $this->drupalCreateUser() inside this test class.
+   *
+   * @param array $permissions
+   *   An array containing all the permissions this user should have.
+   * @param object $space
+   *   (Optional) A Drupal node object representing the Space this user should
+   *   be created in.
+   *
+   * @return object
+   *   The Drupal user object that was created.
+   *
+   * @see DrupalWebTestCase::drupalCreateUser()
+   */
+  protected function oaCreateUser($permissions, $space = NULL) {
+    $account = $this->drupalCreateUser($permissions);
+
+    if ($space) {
+      og_group('node', $space->nid, array(
+        'entity type' => 'user',
+        'entity' => $account,
+        'membership type' => OG_MEMBERSHIP_TYPE_DEFAULT,
+      ));
+    }
+
+    return $account;
+  }
+
+  /**
+   * Creates an Open Atrium Group with a new user in an optional Space.
+   *
+   * @param array $info
+   *   An associative array with information about the node which
+   *   will eventually get passed to node_save().
+   * @param array $permissions
+   *   An array containing all the permissions this user should have.
+   * @param object $space
+   *   (Optional) A Drupal node object representing the Space this user should
+   *   be created in.
+   *
+   * @return array
+   *   An associative array with two keys:
+   *   - group: (object) A Drupal node object representing the new Group node.
+   *   - user: (object) A Drupal user object representing the new user.
+   */
+  protected function oaCreateGroupWithUser(array $info, array $permissions, $space = NULL) {
+    $info += array(
+      'type' => 'oa_group',
+      'title' => 'Group',
+    );
+    $group = $this->oaCreateNode($info);
+    $account = $this->oaCreateUser($permissions, $space);
+
+    // Add the user to the group.
+    og_group('node', $group->nid, array(
+      'entity type' => 'user',
+      'entity' => $account,
+      'membership type' => OG_MEMBERSHIP_TYPE_DEFAULT,
+    ));
+
+    return array(
+      'group' => $group,
+      'user' => $account,
+    );
+  }
+
+  /**
+   * Creates an Open Atrium Team with a new user in a Space.
+   *
+   * @param array $info
+   *   An associative array with information about the node which
+   *   will eventually get passed to node_save().
+   * @param array $permissions
+   *   An array containing all the permissions this user should have.
+   * @param object $space
+   *   A Drupal node object representing the Space this Team and user should be
+   *   created in.
+   *
+   * @return array
+   *   An associative array with two keys:
+   *   - group: (object) A Drupal node object representing the new Group node.
+   *   - user: (object) A Drupal user object representing the new user.
+   */
+  protected function oaCreateTeamWithUser(array $info, array $permissions, $space) {
+    $info += array(
+      'type' => 'oa_team',
+      'title' => 'Team',
+    );
+    $team = $this->oaCreateNode($info, $space);
+    $account = $this->oaCreateUser($permissions, $space);
+
+    // Add the user to the team.
+    oa_teams_add_member($team, $account->uid);
+
+    return array(
+      'team' => $team,
+      'user' => $account,
+    );
+  }
+
+  /**
+   * Changes the workbench moderation profile for the given Space.
+   *
+   * @param object $space
+   *   A Drupal node object representing the Space whose profile should be
+   *   changed.
+   * @param string $profile_label
+   *   The label for the profile that should be selected.
+   */
+  protected function oaWorkbenchModerationProfile($space, $profile_label) {
+    $admin_path = "group/node/{$space->nid}/admin/workbench_moderation_profile_og";
+    $this->drupalGet($admin_path);
+
+    // Find the ID for the profile label.
+    $option = $this->xpath('//select[@id=:id]/option[text()=:name]', array(
+      ':id' => 'edit-workbench-moderation-profile-og',
+      ':name' => $profile_label,
+    ));
+    $profile_id = (string)$option[0]['value'];
+
+    // Change the profile.
+    $edit = array();
+    $edit["workbench_moderation_profile_og"] = $profile_id;
+    $this->drupalPost(NULL, $edit, t('Set Profile'));
+
+    // Verify that the configuration 'stuck'.
+    $this->drupalGet($admin_path);
+    $this->assertOptionSelected('edit-workbench-moderation-profile-og', $profile_id);
+  }
+
+  /**
+   * Post to a Group/Team access page with a set of values.
+   *
+   * You're expected to use $this->drupalGet() to load the admin page before
+   * calling this function to submit.
+   *
+   * After posting to the admin form, it will verify that the permissions
+   * actually "stuck".
+   *
+   * @param array $values
+   *   An associative array keyed by the transition machine name which contains
+   *   arrays of group or team nids.
+   */
+  protected function oaPostPermissions($values) {
+    $edit = array();
+    foreach ($values as $name => $groups) {
+      $edit["transitions[{$name}][groups][]"] = $groups;
+    }
+    $this->drupalPost(NULL, $edit, t('Save permissions'));
+
+    // Verify that the settinsg 'stuck'.
+    foreach ($values as $name => $groups) {
+      $results = $this->xpath('//select[@name=:name]//option', array(':name' => "transitions[{$name}][groups][]"));
+      $found_groups = array();
+      foreach ($results as $option) {
+        if ($option['selected']) {
+          $found_groups[] = (string)$option['value'];
+        }
+      }
+      $this->assertEqual($found_groups, $groups, t('Setting for %transition stuck', array('%transition' => $name)));
+    }
+  }
+
+  /**
+   * Gets a node view page with the internal browser using the given user.
+   *
+   * @param object $node
+   *   A Drupal node object representing the node to get.
+   * @param object $user
+   *   A Drupal user object representing the account to use.
+   *
+   * @return string
+   *   The full HTML output of the page.
+   */
+  protected function getNodeWithUser($node, $account) {
+    $this->drupalLogin($account);
+    return $this->drupalGet("node/{$node->nid}");
+  }
+
+  /**
+   * Asserts that the given node can be transitioned to the given states.
+   *
+   * @param object $node
+   *   A Drupal node object representing the node to get.
+   * @param object $user
+   *   A Drupal user object representing the account to use.
+   * @param array $states
+   *   An array of state machine names.
+   */
+  protected function assertAllowedStatesWithUser($node, $account, $states) {
+    $this->getNodeWithUser($node, $account);
+
+    // Get the select options off the page and make a lookup array keyed on
+    // the values.
+    $results = $this->xpath('//select[@id=:id]/option', array(':id' => 'edit-state'));
+    $found_states = array();
+    foreach ($results as $option) {
+      $found_states[] = (string)$option['value'];
+    }
+
+    // Assert that each of the states are present.
+    $this->assertEqual($found_states, $states);
+  }
+
+  /**
+   * Perform a transition on a node to the given state.
+   *
+   * @param object $node
+   *   A Drupal node object representing the node to get.
+   * @param object $user
+   *   A Drupal user object representing the account to use.
+   * @param string $new_state
+   *   The machine name of the state to transition to.
+   */
+  protected function performTransitionWithUser($node, $account, $new_state) {
+    $this->getNodeWithUser($node, $account);
+    $edit = array();
+    $edit['state'] = $new_state;
+    $this->drupalPost(NULL, $edit, t('Apply'));
+
+    // Make sure that the new state is showing.
+    $new_state_label = workbench_moderation_state_label($new_state);
+    $this->assertRaw("Revision state: <em>{$new_state_label}</em>");
+  }
+
+  public function testNoAccess() {
+    $this->drupalGet("node/{$this->node->nid}");
+    // Make sure the "Workbench information" block is visible.
+    $this->assertRaw("Revision state: <em>Draft</em>");
+    // Since we haven't created any Groups/Teams, then even the
+    // $this->admin_user (which we start out as) shouldn't be able to perform
+    // any transitions.
+    $this->assertNoText("Set moderation state");
+  }
+
+  public function testGroupAccessControl() {
+    // Create three users which are all members of $this->space1 (so that they
+    // have permission to edit $this->node) - two of them in two seperate
+    // groups and one that is not in any group.
+    $group_a = $this->oaCreateGroupWithUser(array('title' => 'Group A'), $this->default_permissions, $this->space1);
+    $group_b = $this->oaCreateGroupWithUser(array('title' => 'Group B'), $this->default_permissions, $this->space1);
+    $not_in_group = $this->oaCreateUser($this->default_permissions, $this->space1);
+
+    // Configure Group B to only move things from 'draft' to 'needs review' and
+    // the reverse - but allow Group A to perform all transitions.
+    $this->drupalGet("admin/openatrium/oa_workbench_access");
+    $this->oaPostPermissions(array(
+      'draft-needs_review' => array($group_a['group']->nid, $group_b['group']->nid),
+      'needs_review-draft' => array($group_a['group']->nid, $group_b['group']->nid),
+      'needs_review-published' => array($group_a['group']->nid),
+    ));
+
+    // Ensure that $not_in_group can't access any transitions
+    $this->assertAllowedStatesWithUser($this->node, $not_in_group, array());
+    // Then check that both Group A and Group B can access the same transitions.
+    $this->assertAllowedStatesWithUser($this->node, $group_a['user'], array(
+      'needs_review',
+    ));
+    $this->assertAllowedStatesWithUser($this->node, $group_b['user'], array(
+      'needs_review',
+    ));
+
+    // Perform the transation to 'needs_review' and check the permissions again.
+    $this->performTransitionWithUser($this->node, $this->admin_user, 'needs_review');
+
+    // Check that each user has the correct states available to them after
+    // transitioning into the 'needs_review' state.
+    $this->assertAllowedStatesWithUser($this->node, $not_in_group, array());
+    $this->assertAllowedStatesWithUser($this->node, $group_a['user'], array(
+      'draft',
+      'published',
+    ));
+    $this->assertAllowedStatesWithUser($this->node, $group_b['user'], array(
+      'draft',
+    ));
+  }
+
+  public function testTeamAccessControl() {
+    // NOTE: Just like the test above but using Teams rather than Groups. I've
+    // removed most of the comments here to avoid repeating myself from above.
+
+    $team_a = $this->oaCreateTeamWithUser(array('title' => 'Team A'), $this->default_permissions, $this->space1);
+    $team_b = $this->oaCreateTeamWithUser(array('title' => 'Team B'), $this->default_permissions, $this->space1);
+    $not_in_team = $this->oaCreateUser($this->default_permissions, $this->space1);
+
+    // Configure Team access on the admin page specific to this Space.
+    $this->drupalGet("group/node/{$this->space1->nid}/admin/oa_workbench_access");
+    $this->oaPostPermissions(array(
+      'draft-needs_review' => array($team_a['team']->nid, $team_b['team']->nid),
+      'needs_review-draft' => array($team_a['team']->nid, $team_b['team']->nid),
+      'needs_review-published' => array($team_a['team']->nid),
+    ));
+
+    $this->assertAllowedStatesWithUser($this->node, $not_in_team, array());
+    $this->assertAllowedStatesWithUser($this->node, $team_a['user'], array(
+      'needs_review',
+    ));
+    $this->assertAllowedStatesWithUser($this->node, $team_b['user'], array(
+      'needs_review',
+    ));
+
+    // Perform the transation to 'needs_review' and check the permissions again.
+    $this->performTransitionWithUser($this->node, $team_a['user'], 'needs_review');
+
+    $this->assertAllowedStatesWithUser($this->node, $not_in_team, array());
+    $this->assertAllowedStatesWithUser($this->node, $team_a['user'], array(
+      'draft',
+      'published',
+    ));
+    $this->assertAllowedStatesWithUser($this->node, $team_b['user'], array(
+      'draft',
+    ));
+  }
+
+  // TODO: Test that permissions for a Team in one Space doesn't have an effect
+  // on content in a different Space.
+}

@@ -3,5 +3,7 @@ description = Access control for Workbench Moderation transitions based on Open 
 package = Open Atrium
 core = 7.x
 
+files[] = oa_workbench_access.test
+
 dependencies[] = oa_workbench
 dependencies[] = og_ui
