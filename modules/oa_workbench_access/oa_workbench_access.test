@@ -11,9 +11,15 @@
  * improve the test run time for the tests. Unfortunately, this won't work on
  * Drupal.org and requires installing from the Open Atrium 2.0 profile AND
  * installing the simpletest_clone module.
+ *
+ * @todo At the moment, this test won't work in pure simpletest and depends
+ *       on simpletest_clone with the additional requirements mentioned above.
+ *       The problem is that I can't get the Panelizer defaults to happen when
+ *       running under pure simpletest, so it can't find the "Workbench
+ *       information" block.
  */
-class OpenAtriumWorkbenchAccess extends DrupalWebTestCase {
-//class OpenAtriumWorkbenchAccess extends SimpleTestCloneTestCase {
+//class OpenAtriumWorkbenchAccess extends DrupalWebTestCase {
+class OpenAtriumWorkbenchAccess extends SimpleTestCloneTestCase {
   public static function getInfo() {
     return array(
       'name' => 'Open Atrium Workbench Access',
@@ -451,6 +457,42 @@ class OpenAtriumWorkbenchAccess extends DrupalWebTestCase {
     ));
   }
 
-  // TODO: Test that permissions for a Team in one Space doesn't have an effect
-  // on content in a different Space.
+  public function testTeamAccessControlLeakage() {
+    $team_a = $this->oaCreateTeamWithUser(array('title' => 'Team A'), $this->default_permissions, $this->space1);
+
+    // Configure Team access on the admin page specific to this Space.
+    $this->drupalGet("group/node/{$this->space1->nid}/admin/oa_workbench_access");
+    $this->oaPostPermissions(array(
+      'draft-needs_review' => array($team_a['team']->nid),
+      'needs_review-draft' => array($team_a['team']->nid),
+      'needs_review-published' => array($team_a['team']->nid),
+    ));
+
+    // Make sure that this user get the permissions it should on a node in this
+    // Space.
+    $this->assertAllowedStatesWithUser($this->node, $team_a['user'], array(
+      'needs_review',
+    ));
+
+    // Now, we create another Space, and put a new node in there.
+    $space2 = $this->oaCreateNode(array(
+      'title' => 'Space B',
+      'type' => 'oa_space',
+      'uid' => $team_a['user']->uid,
+    ));
+    $section2 = $this->oaCreateNode(array(
+      'title' => 'Test section',
+      'type' => 'oa_section',
+      'uid' => $team_a['user']->uid,
+    ), $space2);
+    $node2 = $this->oaCreateNode(array(
+      'title' => 'Test content',
+      'type' => 'oa_workbench_test_content',
+      'uid' => $team_a['user']->uid,
+    ), $space2, $section2);
+
+    // Make sure the permissions from the previous Space don't "leak" into the
+    // new one.
+    $this->assertAllowedStatesWithUser($node2, $team_a['user'], array());
+  }
 }
