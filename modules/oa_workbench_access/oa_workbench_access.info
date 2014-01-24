@@ -6,4 +6,5 @@ core = 7.x
 files[] = oa_workbench_access.test
 
 dependencies[] = oa_workbench
+dependencies[] = oa_access
 dependencies[] = og_ui
