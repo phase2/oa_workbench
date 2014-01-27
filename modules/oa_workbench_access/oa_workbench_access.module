@@ -44,7 +44,8 @@ function oa_workbench_access_workbench_moderation_states_next_alter(&$states, $c
  * admin page.
  */
 function oa_workbench_access_form_oa_access_group_permissions_form_alter(&$form, &$form_state) {
-  if (isset($form['permissions']['oa_workbench_access'])) {
+  $hide_descriptions = system_admin_compact_mode();
+  if (isset($form['permissions']['oa_workbench_access']) && !$hide_descriptions) {
     $form['permissions']['oa_workbench_access']['#description'] = t('Warning: In order to perform a transition, the user must also have a <a href="!url">role with permission</a> to perform the transition.', array('!url' => url('admin/people/permissions#module-workbench_moderation')));
   }
 }
