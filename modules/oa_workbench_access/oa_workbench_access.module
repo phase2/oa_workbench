@@ -81,22 +81,8 @@ function oa_workbench_access_form_oa_access_team_permissions_form_alter(&$form, 
  *   otherwise FALSE.
  */
 function oa_workbench_access($node, $from_state, $to_state, $account = NULL) {
-  global $user;
-
-  if (is_null($account)) {
-    $account = $user;
-  }
-
-  return oa_access("moderate content from $from_state to $to_state", $node, $account);
-}
-
-/**
- * Implements hook_node_delete().
- */
-function oa_workbench_access_node_delete($node) {
-  db_delete('oa_workbench_access')
-    ->condition('nid', $node->nid)
-    ->execute();
+  $space = node_load(oa_core_get_group_from_node($node->nid));
+  return oa_access($space, "moderate content from $from_state to $to_state", $account);
 }
 
 /**
@@ -106,11 +92,8 @@ function oa_workbench_access_node_delete($node) {
  *       https://drupal.org/node/2175891
  */
 function oa_workbench_access_workbench_moderation_state_delete($state) {
-  db_delete('oa_workbench_access')
-    ->condition(db_or()
-      ->condition('from_name', $state->name)
-      ->condition('to_name', $state->name))
-    ->execute();
+  drupal_static_reset('workbench_moderation_transitions');
+  oa_access_cleanup_permissions('oa_workbench_access');
 }
 
 /**
@@ -120,8 +103,6 @@ function oa_workbench_access_workbench_moderation_state_delete($state) {
  *       https://drupal.org/node/2175891
  */
 function oa_workbench_access_workbench_moderation_transition_delete($transition) {
-  db_delete('oa_workbench_access')
-    ->condition('from_name', $transition->from_name)
-    ->condition('to_name', $transition->to_name)
-    ->execute();
+  drupal_static_reset('workbench_moderation_transitions');
+  oa_access_cleanup_permissions('oa_workbench_access');
 }
