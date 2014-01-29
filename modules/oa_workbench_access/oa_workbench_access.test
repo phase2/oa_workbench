@@ -46,6 +46,19 @@ class OpenAtriumWorkbenchAccess extends SimpleTestCloneTestCase {
     features_revert(array('oa_workbench_test' => array('field_instance')));
     entity_info_cache_clear();
 
+    // When running any other test along with testGroupAccessControl(), we get
+    // an OgException: OG membership can not be created in entity 'node' and
+    // bundle 'oa_group' using the field 'og_group_ref' as the field does not
+    // exist. 
+    /*
+    features_revert(array(
+      'oa_core' => array('field_base'),
+      'oa_teams' => array('field_instance'),
+      'oa_sections' => array('field_instance'),
+    ));
+    field_info_cache_clear();
+    */
+
     // Get og_roles for oa_space and map from name to rid.
     $og_roles = array();
     foreach (og_roles('node', 'oa_space') as $rid => $role_name) {
@@ -57,7 +70,7 @@ class OpenAtriumWorkbenchAccess extends SimpleTestCloneTestCase {
       'create oa_section content',
       'create oa_team content',
       'set group workbench moderation profile',
-      'administer oa_workbench_access permissions',
+      'administer oa_access permissions',
     ));
     og_role_grant_permissions($og_roles[OG_AUTHENTICATED_ROLE], array(
       'create oa_workbench_test_content content',
@@ -79,7 +92,7 @@ class OpenAtriumWorkbenchAccess extends SimpleTestCloneTestCase {
     // Create an admin user to set everything up.
     $this->admin_user = $this->drupalCreateUser(array_merge($this->default_permissions, array(
       'create oa_space content',
-      'administer oa_workbench_access permissions',
+      'administer oa_access permissions',
     )));
     $this->drupalLogin($this->admin_user);
 
@@ -274,39 +287,6 @@ class OpenAtriumWorkbenchAccess extends SimpleTestCloneTestCase {
   }
 
   /**
-   * Post to a Group/Team access page with a set of values.
-   *
-   * You're expected to use $this->drupalGet() to load the admin page before
-   * calling this function to submit.
-   *
-   * After posting to the admin form, it will verify that the permissions
-   * actually "stuck".
-   *
-   * @param array $values
-   *   An associative array keyed by the transition machine name which contains
-   *   arrays of group or team nids.
-   */
-  protected function oaPostPermissions($values) {
-    $edit = array();
-    foreach ($values as $name => $groups) {
-      $edit["transitions[{$name}][groups][]"] = $groups;
-    }
-    $this->drupalPost(NULL, $edit, t('Save permissions'));
-
-    // Verify that the settinsg 'stuck'.
-    foreach ($values as $name => $groups) {
-      $results = $this->xpath('//select[@name=:name]//option', array(':name' => "transitions[{$name}][groups][]"));
-      $found_groups = array();
-      foreach ($results as $option) {
-        if ($option['selected']) {
-          $found_groups[] = (string)$option['value'];
-        }
-      }
-      $this->assertEqual($found_groups, $groups, t('Setting for %transition stuck', array('%transition' => $name)));
-    }
-  }
-
-  /**
    * Gets a node view page with the internal browser using the given user.
    *
    * @param object $node
@@ -388,12 +368,22 @@ class OpenAtriumWorkbenchAccess extends SimpleTestCloneTestCase {
 
     // Configure Group B to only move things from 'draft' to 'needs review' and
     // the reverse - but allow Group A to perform all transitions.
-    $this->drupalGet("admin/openatrium/oa_workbench_access");
-    $this->oaPostPermissions(array(
-      'draft-needs_review' => array($group_a['group']->nid, $group_b['group']->nid),
-      'needs_review-draft' => array($group_a['group']->nid, $group_b['group']->nid),
-      'needs_review-published' => array($group_a['group']->nid),
-    ));
+    $group_permissions = array(
+      $group_a['group']->nid => array(
+        'oa_workbench_access' => array(
+          "moderate content from draft to needs_review",
+          "moderate content from needs_review to draft",
+          "moderate content from needs_review to published",
+        ),
+      ),
+      $group_b['group']->nid => array(
+        'oa_workbench_access' => array(
+          "moderate content from draft to needs_review",
+          "moderate content from needs_review to draft",
+        ),
+      ),
+    );
+    oa_access_set_group_permissions($group_permissions);
 
     // Ensure that $not_in_group can't access any transitions
     $this->assertAllowedStatesWithUser($this->node, $not_in_group, array());
@@ -429,12 +419,22 @@ class OpenAtriumWorkbenchAccess extends SimpleTestCloneTestCase {
     $not_in_team = $this->oaCreateUser($this->default_permissions, $this->space1);
 
     // Configure Team access on the admin page specific to this Space.
-    $this->drupalGet("group/node/{$this->space1->nid}/admin/oa_workbench_access");
-    $this->oaPostPermissions(array(
-      'draft-needs_review' => array($team_a['team']->nid, $team_b['team']->nid),
-      'needs_review-draft' => array($team_a['team']->nid, $team_b['team']->nid),
-      'needs_review-published' => array($team_a['team']->nid),
-    ));
+    $group_permissions = array(
+      $team_a['team']->nid => array(
+        'oa_workbench_access' => array(
+          "moderate content from draft to needs_review",
+          "moderate content from needs_review to draft",
+          "moderate content from needs_review to published",
+        ),
+      ),
+      $team_b['team']->nid => array(
+        'oa_workbench_access' => array(
+          "moderate content from draft to needs_review",
+          "moderate content from needs_review to draft",
+        ),
+      ),
+    );
+    oa_access_set_group_permissions($group_permissions);
 
     $this->assertAllowedStatesWithUser($this->node, $not_in_team, array());
     $this->assertAllowedStatesWithUser($this->node, $team_a['user'], array(
@@ -461,12 +461,16 @@ class OpenAtriumWorkbenchAccess extends SimpleTestCloneTestCase {
     $team_a = $this->oaCreateTeamWithUser(array('title' => 'Team A'), $this->default_permissions, $this->space1);
 
     // Configure Team access on the admin page specific to this Space.
-    $this->drupalGet("group/node/{$this->space1->nid}/admin/oa_workbench_access");
-    $this->oaPostPermissions(array(
-      'draft-needs_review' => array($team_a['team']->nid),
-      'needs_review-draft' => array($team_a['team']->nid),
-      'needs_review-published' => array($team_a['team']->nid),
-    ));
+    $group_permissions = array(
+      $team_a['team']->nid => array(
+        'oa_workbench_access' => array(
+          "moderate content from draft to needs_review",
+          "moderate content from needs_review to draft",
+          "moderate content from needs_review to published",
+        ),
+      ),
+    );
+    oa_access_set_group_permissions($group_permissions);
 
     // Make sure that this user get the permissions it should on a node in this
     // Space.
