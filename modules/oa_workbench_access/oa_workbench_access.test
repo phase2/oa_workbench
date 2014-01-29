@@ -46,6 +46,19 @@ class OpenAtriumWorkbenchAccess extends SimpleTestCloneTestCase {
     features_revert(array('oa_workbench_test' => array('field_instance')));
     entity_info_cache_clear();
 
+    // When running any other test along with testGroupAccessControl(), we get
+    // an OgException: OG membership can not be created in entity 'node' and
+    // bundle 'oa_group' using the field 'og_group_ref' as the field does not
+    // exist. 
+    /*
+    features_revert(array(
+      'oa_core' => array('field_base'),
+      'oa_teams' => array('field_instance'),
+      'oa_sections' => array('field_instance'),
+    ));
+    field_info_cache_clear();
+    */
+
     // Get og_roles for oa_space and map from name to rid.
     $og_roles = array();
     foreach (og_roles('node', 'oa_space') as $rid => $role_name) {
@@ -352,7 +365,6 @@ class OpenAtriumWorkbenchAccess extends SimpleTestCloneTestCase {
     $group_a = $this->oaCreateGroupWithUser(array('title' => 'Group A'), $this->default_permissions, $this->space1);
     $group_b = $this->oaCreateGroupWithUser(array('title' => 'Group B'), $this->default_permissions, $this->space1);
     $not_in_group = $this->oaCreateUser($this->default_permissions, $this->space1);
-
 
     // Configure Group B to only move things from 'draft' to 'needs review' and
     // the reverse - but allow Group A to perform all transitions.
