@@ -8,13 +8,17 @@
  * Implements hook_oa_access_permission().
  */
 function oa_workbench_access_oa_access_permission() {
+  // Ensure we're getting the latest list of transitions.
+  drupal_static_reset('workbench_moderation_transitions');
+
   $perms = array();
   foreach (workbench_moderation_transitions() as $transition) {
     $from_state = $transition->from_name;
     $to_state = $transition->to_name;
 
-    $perms["moderate content from $from_state to $to_state"] = array(
+    $perms[oa_workbench_access_permission_name($from_state, $to_state)] = array(
       'title' => t('Moderate all content from %from_state to %to_state', array('%from_state' => workbench_moderation_state_label($from_state), '%to_state' => workbench_moderation_state_label($to_state))),
+      'type' => OA_ACCESS_DEFAULT_PERMISSION | OA_ACCESS_DEFAULT_OPTION_ALL,
     );
   }
   return $perms;
@@ -61,6 +65,21 @@ function oa_workbench_access_form_oa_access_team_permissions_form_alter(&$form, 
 }
 
 /**
+ * Gets the name of the permission for performing a particular transition.
+ *
+ * @param string $from_state
+ *   The machine name of the state we want to transition from.
+ * @param string $to_state
+ *   The machine name of the state we want to transition to.
+ *
+ * @return string
+ *   The full permission machine name for this transition.
+ */
+function oa_workbench_access_permission_name($from_state, $to_state) {
+  return "moderate content from $from_state to $to_state";
+}
+
+/**
  * Determines if the user can perform a transition.
  *
  * This is based on the user's membership in an Open Atrium Group or Team in
@@ -82,7 +101,7 @@ function oa_workbench_access_form_oa_access_team_permissions_form_alter(&$form, 
  */
 function oa_workbench_access($node, $from_state, $to_state, $account = NULL) {
   $space = node_load(oa_core_get_group_from_node($node->nid));
-  return oa_access($space, "moderate content from $from_state to $to_state", $account);
+  return oa_access($space, oa_workbench_access_permission_name($from_state, $to_state), $account);
 }
 
 /**
@@ -92,8 +111,20 @@ function oa_workbench_access($node, $from_state, $to_state, $account = NULL) {
  *       https://drupal.org/node/2175891
  */
 function oa_workbench_access_workbench_moderation_state_delete($state) {
-  drupal_static_reset('workbench_moderation_transitions');
   oa_access_cleanup_permissions('oa_workbench_access');
+}
+
+/**
+ * Implements hook_workbench_moderation_transition_save().
+ *
+ * Note: This depends on the patch from issue #2195479:
+ *       https://drupal.org/node/2195479
+ */
+function oa_workbench_access_workbench_moderation_transition_save($transition, $status) {
+  if ($status == MergeQuery::STATUS_INSERT) {
+    // Initialize the new permission that will be added.
+    oa_access_initialize_permissions(oa_workbench_access_permission_name($transition->from_name, $transition->to_name));
+  }
 }
 
 /**
@@ -103,6 +134,5 @@ function oa_workbench_access_workbench_moderation_state_delete($state) {
  *       https://drupal.org/node/2175891
  */
 function oa_workbench_access_workbench_moderation_transition_delete($transition) {
-  drupal_static_reset('workbench_moderation_transitions');
   oa_access_cleanup_permissions('oa_workbench_access');
 }
