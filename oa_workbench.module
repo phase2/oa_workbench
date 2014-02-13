@@ -48,16 +48,6 @@ function oa_workbench_strongarm_alter(&$items) {
       "Edit draft,icon-pencil",
     ));
   }
-  
-  // Enable Workbench for all content types that come from Features and are
-  // marked as OG group content.
-  foreach (array_keys(node_type_get_types()) as $node_type) {
-    $node_options_name = "node_options_{$node_type}";
-    if (isset($items[$node_options_name]) && og_is_group_content_type('node', $node_type)) {
-      $items[$node_options_name]->value[] = 'moderation';
-      sort($items[$node_options_name]->value);
-    }
-  }
 }
 
 /**
