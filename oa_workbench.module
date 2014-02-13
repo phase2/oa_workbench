@@ -51,6 +51,50 @@ function oa_workbench_strongarm_alter(&$items) {
 }
 
 /**
+ * Implements hook_og_permission().
+ */
+function oa_workbench_og_permission() {
+  $perms = array();
+  foreach (workbench_moderation_transitions() as $transition) {
+    $from_state = $transition->from_name;
+    $to_state = $transition->to_name;
+
+    $perm = array(
+      'title' => t('Moderate all content from %from_state to %to_state', array('%from_state' => workbench_moderation_state_label($from_state), '%to_state' => workbench_moderation_state_label($to_state))),
+    );
+
+    // By default, give all permissions to all members, except for the
+    // 'published' state, which will go to group admins by default.
+    if ($to_state == workbench_moderation_state_published()) {
+      $perm['default role'] = array(OG_ADMINISTRATOR_ROLE);
+    }
+    else {
+      $perm['default role'] = array(OG_AUTHENTICATED_ROLE, OG_ADMINISTRATOR_ROLE);
+    }
+
+    $perms["moderate content from $from_state to $to_state"] = $perm;
+  }
+  return $perms;
+}
+
+/**
+ * Implements hook_workbench_moderation_states_next_alter().
+ */
+function oa_workbench_workbench_moderation_states_next_alter(&$states, $current_state, $context) {
+  $account = $context['account'];
+  $node = $context['node'];
+
+  // Remove states that the user doesn't have permission to transition to.
+  if ($states && !empty($node->nid) && og_is_group_content_type($node->type) && ($space = oa_core_group_from_node($node->nid))) {
+    foreach ($states as $machine_name => $label) {
+      if (!og_user_access('node', $space->nid, "moderate content from $current_state to $machine_name", $account)) {
+        unset($states[$machine_name]);
+      }
+    }
+  }
+}
+
+/**
  * Loops through a Panels display and gets a new pid.
  *
  * @param object $display
