@@ -1,11 +1,19 @@
 name = Open Atrium Workbench
 description = Integrates Workbench with Open Atrium
-package = Open Atrium
 core = 7.x
-
+package = Open Atrium
+dependencies[] = ctools
+dependencies[] = defaultconfig
+dependencies[] = features
 dependencies[] = oa_core
 dependencies[] = oa_layouts
+dependencies[] = og
+dependencies[] = strongarm
 dependencies[] = workbench
 dependencies[] = workbench_moderation
 dependencies[] = workbench_moderation_profile
 dependencies[] = workbench_moderation_profile_og
+features[defaultconfig][] = user_default_permissions:moderate content from draft to needs_review
+features[defaultconfig][] = user_default_permissions:moderate content from needs_review to draft
+features[defaultconfig][] = user_default_permissions:moderate content from needs_review to published
+features[features_api][] = api:2
