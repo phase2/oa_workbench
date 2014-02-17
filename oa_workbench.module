@@ -95,6 +95,34 @@ function oa_workbench_workbench_moderation_states_next_alter(&$states, $current_
 }
 
 /**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function oa_workbench_form_node_form_alter(&$form, &$form_state) {
+  $node = $form['#node'];
+
+  if (workbench_moderation_node_moderated($node)) {
+    // If this node is moderated and there are both the 'Publish' and
+    // 'Save draft' buttons, we hide the 'Publish' button since workbench
+    // won't allow us to immediately publish anyway.
+    if (!empty($form['actions']['draft']) && !empty($form['actions']['submit']) && empty($node->status)) {
+      $form['actions']['submit']['#access'] = FALSE;
+    }
+  }
+}
+
+/**
+ * Implements hook_module_implements().
+ */
+function oa_workbench_module_implements_alter(&$implementations, $hook) {
+  if ($hook == 'form_alter' && isset($implementations['oa_workbench'])) {
+    // Put the oa_workbench hook at the end so it comes after 'save_draft'.
+    $group = $implementations['oa_workbench'];
+    unset($implementations['oa_workbench']);
+    $implementations['oa_workbench'] = $group;
+  }
+}
+
+/**
  * Loops through a Panels display and gets a new pid.
  *
  * @param object $display
