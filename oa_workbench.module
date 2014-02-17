@@ -85,9 +85,9 @@ function oa_workbench_workbench_moderation_states_next_alter(&$states, $current_
   $node = $context['node'];
 
   // Remove states that the user doesn't have permission to transition to.
-  if ($states && !empty($node->nid) && og_is_group_content_type($node->type) && ($space = oa_core_group_from_node($node->nid))) {
+  if ($states && !empty($node->nid) && og_is_group_content_type('node', $node->type) && ($space_nid = oa_core_get_group_from_node($node->nid))) {
     foreach ($states as $machine_name => $label) {
-      if (!og_user_access('node', $space->nid, "moderate content from $current_state to $machine_name", $account)) {
+      if (!og_user_access('node', $space_nid, "moderate content from $current_state to $machine_name", $account)) {
         unset($states[$machine_name]);
       }
     }
