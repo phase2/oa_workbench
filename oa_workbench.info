@@ -13,6 +13,7 @@ dependencies[] = workbench
 dependencies[] = workbench_moderation
 dependencies[] = workbench_moderation_profile
 dependencies[] = workbench_moderation_profile_og
+features[defaultconfig][] = user_default_permissions:access workbench
 features[defaultconfig][] = user_default_permissions:moderate content from draft to needs_review
 features[defaultconfig][] = user_default_permissions:moderate content from needs_review to draft
 features[defaultconfig][] = user_default_permissions:moderate content from needs_review to published
