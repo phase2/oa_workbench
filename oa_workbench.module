@@ -123,6 +123,18 @@ function oa_workbench_module_implements_alter(&$implementations, $hook) {
 }
 
 /**
+ * Preprocess function for 'oa_user_badge' theme function.
+ */
+function oa_workbench_preprocess_oa_user_badge(&$vars) {
+  if (user_access('access workbench')) {
+    $vars['links']['#links']['oa_workbench'] = array(
+      'title' => t('My workbench'),
+      'href' => 'admin/workbench',
+    );
+  }
+}
+
+/**
  * Loops through a Panels display and gets a new pid.
  *
  * @param object $display
