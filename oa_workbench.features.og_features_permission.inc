@@ -18,6 +18,13 @@ function oa_workbench_og_features_default_permissions() {
     ),
   );
 
+  // Exported og permission: 'node:oa_space:moderate content from draft to published'
+  $permissions['node:oa_space:moderate content from draft to published'] = array(
+    'roles' => array(
+      'administrator member' => 'administrator member',
+    ),
+  );
+
   // Exported og permission: 'node:oa_space:moderate content from needs_review to draft'
   $permissions['node:oa_space:moderate content from needs_review to draft'] = array(
     'roles' => array(
