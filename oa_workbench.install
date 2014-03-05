@@ -1,0 +1,32 @@
+<?php
+
+/**
+ * @file
+ * Code for the Open Atrium Workbench module install hooks.
+ */
+
+/**
+ * Implements hook_install()
+ */
+function oa_workbench_install() {
+  // create default permissions for transitions
+  $permissions_by_role = array();
+  $admin_role = user_role_load_by_name('administrator');
+  $admin_rid = isset($admin_role) ? $admin_role->rid : 0;
+
+  foreach (workbench_moderation_transitions() as $transition) {
+    $from_state = $transition->from_name;
+    $to_state = $transition->to_name;
+
+    // all transitions allowed for all authenticated users as
+    // og_permissions takes care of restricting this per space
+    $perm = "moderate content from $from_state to $to_state";
+    $permissions_by_role[$admin_rid][$perm] = TRUE;
+    $permissions_by_role[DRUPAL_AUTHENTICATED_RID][$perm] = TRUE;
+  }
+
+  foreach ($permissions_by_role as $rid => $perms) {
+    user_role_change_permissions($rid, $perms);
+  }
+}
+

@@ -31,46 +31,6 @@ function oa_workbench_defaultconfig_user_default_permissions() {
     'module' => 'workbench',
   );
 
-  // Exported permission: 'moderate content from draft to needs_review'.
-  $permissions['moderate content from draft to needs_review'] = array(
-    'name' => 'moderate content from draft to needs_review',
-    'roles' => array(
-      'administrator' => 'administrator',
-      'authenticated user' => 'authenticated user',
-    ),
-    'module' => 'workbench_moderation',
-  );
-
-  // Exported permission: 'moderate content from draft to published'.
-  $permissions['moderate content from draft to published'] = array(
-    'name' => 'moderate content from draft to published',
-    'roles' => array(
-      'administrator' => 'administrator',
-      'authenticated user' => 'authenticated user',
-    ),
-    'module' => 'workbench_moderation',
-  );
-
-  // Exported permission: 'moderate content from needs_review to draft'.
-  $permissions['moderate content from needs_review to draft'] = array(
-    'name' => 'moderate content from needs_review to draft',
-    'roles' => array(
-      'administrator' => 'administrator',
-      'authenticated user' => 'authenticated user',
-    ),
-    'module' => 'workbench_moderation',
-  );
-
-  // Exported permission: 'moderate content from needs_review to published'.
-  $permissions['moderate content from needs_review to published'] = array(
-    'name' => 'moderate content from needs_review to published',
-    'roles' => array(
-      'administrator' => 'administrator',
-      'authenticated user' => 'authenticated user',
-    ),
-    'module' => 'workbench_moderation',
-  );
-
   // Exported permission: 'use workbench_moderation my drafts tab'.
   $permissions['use workbench_moderation my drafts tab'] = array(
     'name' => 'use workbench_moderation my drafts tab',
