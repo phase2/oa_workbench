@@ -307,7 +307,7 @@ function oa_workbench_views_default_views() {
   $handler->display->display_options['fields']['og_group_ref']['label'] = 'Space';
   $handler->display->display_options['fields']['og_group_ref']['element_label_colon'] = FALSE;
   $handler->display->display_options['fields']['og_group_ref']['settings'] = array(
-    'link' => 0,
+    'link' => 1,
   );
   /* Field: Content: Open Atrium Section */
   $handler->display->display_options['fields']['oa_section_ref']['id'] = 'oa_section_ref';
@@ -317,7 +317,7 @@ function oa_workbench_views_default_views() {
   $handler->display->display_options['fields']['oa_section_ref']['label'] = 'Section';
   $handler->display->display_options['fields']['oa_section_ref']['element_label_colon'] = FALSE;
   $handler->display->display_options['fields']['oa_section_ref']['settings'] = array(
-    'link' => 0,
+    'link' => 1,
   );
   /* Field: Content: Updated date */
   $handler->display->display_options['fields']['changed']['id'] = 'changed';
