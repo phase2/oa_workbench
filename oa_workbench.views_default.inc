@@ -299,6 +299,16 @@ function oa_workbench_views_default_views() {
   $handler->display->display_options['fields']['name']['field'] = 'name';
   $handler->display->display_options['fields']['name']['relationship'] = 'uid';
   $handler->display->display_options['fields']['name']['label'] = 'Revised by';
+  /* Field: Content: Groups audience */
+  $handler->display->display_options['fields']['og_group_ref']['id'] = 'og_group_ref';
+  $handler->display->display_options['fields']['og_group_ref']['table'] = 'og_membership';
+  $handler->display->display_options['fields']['og_group_ref']['field'] = 'og_group_ref';
+  $handler->display->display_options['fields']['og_group_ref']['relationship'] = 'nid';
+  $handler->display->display_options['fields']['og_group_ref']['label'] = 'Space';
+  $handler->display->display_options['fields']['og_group_ref']['element_label_colon'] = FALSE;
+  $handler->display->display_options['fields']['og_group_ref']['settings'] = array(
+    'link' => 0,
+  );
   /* Field: Content: Open Atrium Section */
   $handler->display->display_options['fields']['oa_section_ref']['id'] = 'oa_section_ref';
   $handler->display->display_options['fields']['oa_section_ref']['table'] = 'field_data_oa_section_ref';
