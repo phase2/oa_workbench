@@ -10,6 +10,7 @@
 function oa_workbench_workbench_moderation_export_transitions() {
   $items = array(
     'draft:published' => array(
+      'name' => 'Publish Immediately',
       'from_name' => 'draft',
       'to_name' => 'published',
     ),
