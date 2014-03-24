@@ -1,4 +1,10 @@
 <?php
+/**
+ * @file
+ * Code for the Open Atrium Workbench feature.
+ */
+
+include_once 'oa_workbench.features.inc';
 
 /**
  * @file
