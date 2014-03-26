@@ -9,40 +9,5 @@
  * Implements hook_install()
  */
 function oa_workbench_install() {
-  $drupal_permissions = array();
-  $drupal_admin_role = user_role_load_by_name('administrator');
-  $drupal_admin_rid = isset($admin_role) ? $admin_role->rid : 0;
-
-  $og_permissions = array();
-  $og_roles = array_flip(og_roles('node', 'oa_space'));
-  $og_member_rid = $og_roles[OG_AUTHENTICATED_ROLE];
-  $og_admin_rid = $og_roles[OG_ADMINISTRATOR_ROLE];
-
-  foreach (workbench_moderation_transitions() as $transition) {
-    $from_state = $transition->from_name;
-    $to_state = $transition->to_name;
-
-    // All transitions allowed for all authenticated users as
-    // og_permissions takes care of restricting this per space.
-    $perm = "moderate content from $from_state to $to_state";
-    $drupal_permissions[$drupal_admin_rid][$perm] = TRUE;
-    $drupal_permissions[DRUPAL_AUTHENTICATED_RID][$perm] = TRUE;
-
-    // Allow administrator members to perform all transations,
-    // and authenticated users to put things up for review.
-    $og_permissions[$og_admin_rid][$perm] = TRUE;
-    if (in_array($from_state, array('draft', 'needs_review')) && in_array($to_state, array('draft', 'needs_review'))) {
-      $og_permissions[$og_member_rid][$perm] = TRUE;
-    }
-  }
-
-  // Set global Drupal permissions.
-  foreach ($drupal_permissions as $rid => $perms) {
-    user_role_change_permissions($rid, $perms);
-  }
-  // Set og_permissions.
-  foreach ($og_permissions as $rid => $perms) {
-    og_role_change_permissions($rid, $perms);
-  }
+  oa_workbench_setup_default_permissions(workbench_moderation_transitions());
 }
-
