@@ -7,9 +7,13 @@
 include_once 'oa_workbench.features.inc';
 
 /**
- * @file
- * Code for the Open Atrium Workbench module.
+ * Implements hook_ctools_plugin_directory().
  */
+function oa_workbench_ctools_plugin_directory($owner, $plugin_type) {
+  if ($owner == 'ctools') {
+    return 'plugins/' . $plugin_type;
+  }
+}
 
 /**
  * Implements hook_block_info_alter().
@@ -202,42 +206,14 @@ function oa_workbench_workbench_moderation_transition_save($transition, $status)
 }
 
 /**
- * Loops through a Panels display and gets a new pid.
- *
- * @param object $display
- *   A panels_display object.
- *
- * @return string
- *   A string representing a pid that is one higher than the last one, for
- *   example: "new-17" (if the highest existing is "new-16").
- */
-function oa_workbench_get_new_pid($display) {
-  // Get the pid that is one higher than the highest.
-  $new_pid = 0;
-  foreach (array_keys($display->content) as $key) {
-    list ($temp, $pid) = explode('-', $key);
-    $pid = (int)$pid;
-    if ($pid > $new_pid) {
-      $new_pid = $pid;
-    }
-  }
-  $new_pid++;
-
-  return 'new-' . $new_pid;
-}
-
-/**
- * Gets a Panels pane object representing the Workbench pane.
- *
- * @param string $pid
- *   The pid value to use for the new pane.
+ * Gets a Panels pane object representing the Workbench message pane.
  *
  * @return object
  *   A Panels pane object.
  */
-function oa_workbench_get_workbench_pane($pid) {
+function oa_workbench_get_workbench_message_pane() {
   $pane = new stdClass();
-  $pane->pid = $pid;
+  $pane->pid = 'new-f8f576b6-07a6-454f-b2eb-6a8b67d50af2';
   $pane->panel = 'sidebar';
   $pane->type = 'block';
   $pane->subtype = 'workbench-block';
@@ -255,6 +231,39 @@ function oa_workbench_get_workbench_pane($pid) {
   $pane->extras = array();
   $pane->position = 0;
   $pane->locks = array();
+  $pane->uuid = 'f8f576b6-07a6-454f-b2eb-6a8b67d50af2';
+
+  return $pane;
+}
+
+/**
+ * Gets a Panels pane object representing the Workbench Moderation State pane.
+ *
+ * @return object
+ *   A Panels pane object.
+ */
+function oa_workbench_get_workbench_state_pane() {
+  $pane = new stdClass();
+  $pane->pid = 'new-a5614425-0777-429d-8c23-89696ffc1bc7';
+  $pane->panel = 'sidebar';
+  $pane->type = 'oa_workbench_moderation_state';
+  $pane->subtype = 'oa_workbench_moderation_state';
+  $pane->shown = TRUE;
+  $pane->access = array();
+  $pane->configuration = array(
+    'context' => 'argument_node_edit_1',
+    'override_title' => 0,
+    'override_title_text' => '',
+  );
+  $pane->cache = array();
+  $pane->style = array(
+    'settings' => NULL,
+  );
+  $pane->css = array();
+  $pane->extras = array();
+  $pane->position = 1;
+  $pane->locks = array();
+  $pane->uuid = 'a5614425-0777-429d-8c23-89696ffc1bc7';
 
   return $pane;
 }
@@ -265,12 +274,14 @@ function oa_workbench_get_workbench_pane($pid) {
 function oa_workbench_default_page_manager_handlers_alter(&$handlers) {
   foreach ($handlers as &$handler) {
     if ($handler->task == 'node_edit') {
-      $new_pid = oa_workbench_get_new_pid($handler->conf['display']);
-      $pane = oa_workbench_get_workbench_pane($new_pid);
+      $message_pane = oa_workbench_get_workbench_message_pane();
+      $state_pane = oa_workbench_get_workbench_state_pane();
 
       // Add the workbench block to the top of the sidebar.
-      $handler->conf['display']->content[$new_pid] = $pane;
-      array_unshift($handler->conf['display']->panels['sidebar'], $new_pid);
+      $handler->conf['display']->content[$state_pane->pid] = $state_pane;
+      $handler->conf['display']->content[$message_pane->pid] = $message_pane;
+      array_unshift($handler->conf['display']->panels['sidebar'], $state_pane->pid);
+      array_unshift($handler->conf['display']->panels['sidebar'], $message_pane->pid);
     }
   }
 }
@@ -280,11 +291,10 @@ function oa_workbench_default_page_manager_handlers_alter(&$handlers) {
  */
 function oa_workbench_default_panels_mini_alter(&$panels) {
   if (isset($panels['section_sidebar_top'])) {
-    $new_pid = oa_workbench_get_new_pid($panels['section_sidebar_top']->display);
-    $pane = oa_workbench_get_workbench_pane($new_pid);
+    $pane = oa_workbench_get_workbench_message_pane();
 
     // Add the workbench block to the top of the sidebar mini-panel.
-    $panels['section_sidebar_top']->display->content[$new_pid] = $pane;
-    array_unshift($panels['section_sidebar_top']->display->panels['middle'], $new_pid);
+    $panels['section_sidebar_top']->display->content[$pane->pid] = $pane;
+    array_unshift($panels['section_sidebar_top']->display->panels['middle'], $pane->pid);
   }
 }
