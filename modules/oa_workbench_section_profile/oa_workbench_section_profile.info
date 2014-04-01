@@ -1,0 +1,14 @@
+name = Open Atrium Workbench Section Profiles
+description = Allows a Workbench Moderation Profile to be selected per Section.
+core = 7.x
+package = Open Atrium
+dependencies[] = features
+dependencies[] = list
+dependencies[] = oa_workbench
+dependencies[] = strongarm
+dependencies[] = workbench_moderation_profile
+features[ctools][] = strongarm:strongarm:1
+features[features_api][] = api:2
+features[field_base][] = field_oa_workbench_profile
+features[field_instance][] = node-oa_section-field_oa_workbench_profile
+features[variable][] = workbench_moderation_profile_weights

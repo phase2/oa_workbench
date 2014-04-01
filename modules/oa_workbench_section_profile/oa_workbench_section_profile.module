@@ -1,0 +1,47 @@
+<?php
+/**
+ * @file
+ * Code for the Open Atrium Workbench Section Profiles feature.
+ */
+
+include_once 'oa_workbench_section_profile.features.inc';
+
+/**
+ * Implements hook_workbench_moderation_profile_get_profile().
+ */
+function oa_workbench_section_profile_workbench_moderation_profile_get_profile($content) {
+  if (isset($content->nid) && isset($content->{OA_SECTION_FIELD})) {
+    $section = field_get_items('node', $content, OA_SECTION_FIELD);
+    $section = !empty($section[0]['target_id']) ? node_load($section[0]['target_id']) : NULL;
+
+    if ($section && isset($section->field_oa_workbench_profile)) {
+      $profile = field_get_items('node', $section, 'field_oa_workbench_profile');
+      $profile = !empty($profile[0]['value']) ? $profile[0]['value'] : NULL;
+
+      return $profile;
+    }
+  }
+}
+
+/**
+ * Allowed values callback for 'oa_workbench_section_profile' field.
+ */
+function oa_workbench_section_profile_allowed_values_callback($field, $instance, $entity_type, $entity, &$cachable) {
+  $options = $field['settings']['allowed_values'];
+  return $options + workbench_moderation_profile_make_options_array(FALSE);
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function oa_workbench_form_workbench_moderation_profile_weights_form_alter(&$form, &$form_state) {
+  // The profiles for usability. For example, 'workbench_moderation_profile_og'
+  // talks about Groups, but we call them Spaces. Also, we use a totally
+  // different format for this modules name, so, make them consistent.
+  if (isset($form['profile_modules']['workbench_moderation_profile_og'])) {
+    $form['profile_modules']['workbench_moderation_profile_og']['name']['#markup'] = t('Workbench Moderation Profiles by Space');
+  }
+  if (isset($form['profile_modules']['oa_workbench_section_profile'])) {
+    $form['profile_modules']['oa_workbench_section_profile']['name']['#markup'] = t('Workbench Moderation Profiles by Section');
+  }
+}
