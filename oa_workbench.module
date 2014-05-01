@@ -64,7 +64,15 @@ function oa_workbench_strongarm_alter(&$items) {
  * Implements hook_og_permission().
  */
 function oa_workbench_og_permission() {
-  $perms = array();
+  $perms = array(
+    // This is a Space-specific version of workbench_moderation's permission.
+    'view all unpublished content' => array(
+      'title' => t('View all unpublished content'),
+      'default role' => array(OG_ADMINISTRATOR_ROLE),
+    ),
+  );
+
+  // Add permissions for all the transitions.
   foreach (workbench_moderation_transitions() as $transition) {
     $from_state = $transition->from_name;
     $to_state = $transition->to_name;
@@ -84,6 +92,7 @@ function oa_workbench_og_permission() {
 
     $perms["moderate content from $from_state to $to_state"] = $perm;
   }
+
   return $perms;
 }
 
@@ -130,6 +139,19 @@ function oa_workbench_module_implements_alter(&$implementations, $hook) {
     unset($implementations['oa_workbench']);
     $implementations['oa_workbench'] = $group;
   }
+}
+
+/**
+ * Implements hook_node_access().
+ *
+ * Allows users with the Space-specific 'view all unpublished content'
+ * permission to do so with content in their Spaces.
+ */
+function oa_workbench_node_access($node, $op, $account) {
+  if ($op == 'view' && !$node->status && og_is_group_content_type('node', $node->type) && ($space_nid = oa_core_get_group_from_node($node->nid)) && og_user_access('node', $space_nid, 'view all unpublished content')) {
+    return NODE_ACCESS_ALLOW;
+  }
+  return NODE_ACCESS_IGNORE;
 }
 
 /**
