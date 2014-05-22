@@ -18,7 +18,8 @@ function oa_workbench_access_oa_access_permission() {
 
     $perms[oa_workbench_access_permission_name($from_state, $to_state)] = array(
       'title' => t('Moderate all content from %from_state to %to_state', array('%from_state' => workbench_moderation_state_label($from_state), '%to_state' => workbench_moderation_state_label($to_state))),
-      'type' => OA_ACCESS_DEFAULT_PERMISSION | OA_ACCESS_DEFAULT_OPTION_ALL,
+      'type' => OA_ACCESS_DEFAULT_PERMISSION | OA_ACCESS_GROUP_DEFAULT_OPTION_ALL,
+      'combine' => OA_ACCESS_COMBINE_TEAM_OVERRIDE,
     );
   }
   return $perms;
