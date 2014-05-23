@@ -1,0 +1,22 @@
+<?php
+/**
+ * Install hooks for Open Atrium Workbench Access.
+ */
+
+/**
+ * Remove the 'All Space members' permissions from all Spaces.
+ */
+function oa_workbench_access_update_7001() {
+  $space_nids = db_select('node', 'n')
+    ->fields('n', array('nid'))
+    ->condition('type', 'oa_space')
+    ->execute()
+    ->fetchCol();
+
+  foreach ($space_nids as $space_nid) {
+    db_delete('oa_access')
+      ->condition('module', 'oa_workbench_access')
+      ->condition('nid', $space_nid)
+      ->execute();
+  }
+}
