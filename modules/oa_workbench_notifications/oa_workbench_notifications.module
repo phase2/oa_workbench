@@ -1,0 +1,70 @@
+<?php
+/**
+ * @file
+ * Code for the Open Atrium Workbench Notifications module.
+ */
+
+include_once 'oa_workbench_notifications.features.inc';
+
+/**
+ * Implements hook_workbench_moderation_transition().
+ *
+ * Dispatches an OA message for content workflow transitions.
+ */
+function oa_workbench_notifications_workbench_moderation_transition($node, $previous_state, $new_state) {
+  $state_labels = workbench_moderation_state_labels();
+  $params = array(
+    'previous_state' => $state_labels[$previous_state],
+    'new_state' => $state_labels[$new_state],
+  );
+  oa_messages_create('oa_workbench_transition_notification', $node, 'node', '', $params);
+}
+
+/**
+ * Implements hook_oa_messages_create_alter().
+ *
+ * Alters the OA message for content workflow transitions to include the new and
+ * previous workflow states.
+ */
+function oa_workbench_notifications_oa_messages_create_alter($wrapper, $context) {
+  if ($context['message_type'] == 'oa_workbench_transition_notification') {
+    if (isset($context['arguments']['previous_state']) && isset($context['arguments']['new_state']) && isset($wrapper->field_oa_message_workflow_prev) && isset($wrapper->field_oa_message_workflow_new)) {
+      // Map the previous and new workflow state names to their respective
+      // fields on the message entity.
+      $wrapper->field_oa_message_workflow_prev->set($context['arguments']['previous_state']);
+      $wrapper->field_oa_message_workflow_new->set($context['arguments']['new_state']);
+    }
+  }
+}
+
+/**
+ * Implements hook_message_subscribe_get_subscribers().
+ * 
+ * Return the users that should be notified for a given workflow transition.
+ */
+function oa_workbench_notifications_message_subscribe_get_subscribers(Message $message, $subscribe_options = array(), $context = array()) {
+  if ($message->type == 'oa_workbench_transition_notification') {
+    $uids = array();
+    // Get the content and space nids from the message
+    $content_nid = (!empty($message->field_oa_node_ref[LANGUAGE_NONE][0]['target_id'])) ? $message->field_oa_node_ref[LANGUAGE_NONE][0]['target_id'] : FALSE;
+    $space_nid = (!empty($message->field_oa_message_space[LANGUAGE_NONE][0]['target_id'])) ? $message->field_oa_message_space[LANGUAGE_NONE][0]['target_id'] : FALSE;
+    if ($content_nid && $space_nid) {
+      $space = node_load($space_nid);
+
+      // Find the team that should be notified for the space
+      $space_workflow_team_nid = !empty($space->field_oa_workbench_notify_team[LANGUAGE_NONE][0]['target_id']) ? $space->field_oa_workbench_notify_team[LANGUAGE_NONE][0]['target_id'] : FALSE;
+      $space_workflow_team = !empty($space_workflow_team_nid) ? node_load($space_workflow_team_nid) : FALSE;
+      if ($space_workflow_team) {
+
+        // Find the users in the team and return them
+        $space_workflow_users = $space_workflow_team->field_oa_team_users[LANGUAGE_NONE];
+        foreach ($space_workflow_users as $item) {
+          if (isset($item['target_id']) && $uid = intval($item['target_id'])) {
+            $uids[$uid] = array('notifiers' => array(), 'flags' => array('oa_workbench_notifications'));
+          }
+        }
+      }
+    }
+    return $uids;
+  }
+}
