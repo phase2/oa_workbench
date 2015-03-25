@@ -72,7 +72,7 @@ function oa_workbench_access_form_oa_access_team_permissions_form_alter(&$form, 
   if ($profile = workbench_moderation_profile_load(workbench_moderation_profile_og_get_profile($gid))) {
     $transitions = field_get_items('workbench_moderation_profile', $profile, 'field_transitions', $profile);
     foreach ($transitions as $key => $transition) {
-      $transition = workbench_moderation_profile_transition_load($transition['target_id']);
+      $transition = workbench_moderation_transition_load($transition['target_id']);
       $valid_permissions[oa_workbench_access_permission_name($transition->from_name, $transition->to_name)] = TRUE;
     }
   }
