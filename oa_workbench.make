@@ -10,7 +10,7 @@ projects[workbench_moderation][version] = 1.x-dev
 projects[workbench_moderation][subdir] = contrib
 projects[workbench_moderation][download][type] = git
 projects[workbench_moderation][download][branch] = 7.x-1.x
-projects[workbench_moderation][patch][1285090] = http://drupal.org/files/playnicewithpanels-1285090-22.patch
+projects[workbench_moderation][patch][1285090] = https://www.drupal.org/files/playnicewithpanels-1285090-22.patch
 
 ; TODO: Update to official Drupal.org Git repo and select a specific version.
 projects[workbench_moderation_profile][type] = module
